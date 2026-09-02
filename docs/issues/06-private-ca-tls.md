@@ -21,8 +21,9 @@ product's transport security; DESIGN §6.5 is the exact spec.
 ## Detailed Requirements
 
 1. Files `<data_dir>/ca/{ca.crt,ca.key,server.crt,server.key}` — PEM; dir
-   `0700`, keys `0600`. Startup warning (slog `warn`) if any key is
-   group/world-readable; hard error if `ca.key` exists but is unreadable.
+   `0700`, keys `0600`. Startup must fail closed with a hard error if either
+   private key is group/world-readable or unreadable; the error identifies the
+   offending path and preserves the `0700`/`0600` contract.
 2. **EnsureCA** (idempotent): ECDSA P-256; subject
    `CN=OpenIntercom Home CA <8 hex chars from crypto/rand>`; validity 10 y;
    `IsCA`, `MaxPathLen=0, MaxPathLenZero=true`; KeyUsage
@@ -71,11 +72,15 @@ product's transport security; DESIGN §6.5 is the exact spec.
       message.
 - [ ] `cert info` output contains the same fingerprint as
       `Manager.Fingerprint()`.
+- [ ] Unsafe or unreadable `ca.key` and `server.key` each fail startup closed,
+      identify the path, and do not continue to serving.
 
 ## Validation
 
 `go test -race ./internal/ca/...` with injected clock + IP provider; a
 `tls.Server`/`tls.Client` in-test handshake pinned to the generated CA.
+The focused permission cases must cover both private-key paths and both
+group/world-readable and unreadable failures.
 
 ## Dependencies
 
